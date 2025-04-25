@@ -389,9 +389,6 @@ class Attention(nn.Module):
                     new_kv_cache = Xk_BxNxSxH, Xv_BxNxSxH
                     attn_k, attn_v = cache.get_kv_for_attention(Xk_BxNxSxH, Xv_BxNxSxH)
 
-        target_dtype = Xq_BxNxTxH.dtype
-        attn_k = attn_k.to(target_dtype)    
-        attn_v = attn_v.to(target_dtype)
         attn_output = F.scaled_dot_product_attention(
             Xq_BxNxTxH,
             attn_k,
@@ -839,6 +836,22 @@ class DiaModel(nn.Module):
         self.config = config
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
+        #self._init_weights()
+
+    
+    def _init_weights(self):
+        for module in self.modules():
+            if isinstance(module, (torch.nn.Linear, torch.nn.Conv1d)):
+                torch.nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    torch.nn.init.zeros_(module.bias)
+            elif isinstance(module, torch.nn.Embedding):
+                torch.nn.init.xavier_uniform_(module.weight)
+            elif isinstance(module, torch.nn.LayerNorm) or isinstance(module, torch.nn.modules.normalization.RMSNorm):
+                if hasattr(module, 'weight') and module.weight is not None:
+                    torch.nn.init.ones_(module.weight)
+                if hasattr(module, 'bias') and module.bias is not None:
+                    torch.nn.init.zeros_(module.bias)
 
     def forward(
         self,
@@ -861,8 +874,27 @@ class DiaModel(nn.Module):
             attn_mask=enc_self_attn_mask,
         )
 
+        B, T, C = tgt_BxTxC.shape  # Batch size, target sequence length, channels
+        device = tgt_BxTxC.device
+
+        self_attention_cache = [
+            KVCache(
+                num_heads=self.decoder.layers[i].self_attention.num_query_heads,  # ✅ FIXED: use query heads!
+                max_len=T,
+                head_dim=self.decoder.layers[i].self_attention.head_dim,
+                device=device,
+            )
+            for i in range(self.decoder.num_layers)
+        ]
+
+        cross_attention_cache = self.decoder.precompute_cross_attention_kv(
+            max_len=encoder_out.shape[1],
+            encoder_out=encoder_out,
+            src_positions=src_positions,
+        )
+
         # --- Decoder Pass ---
-        logits, _ = self.decoder(
+        logits = self.decoder(
             tgt_ids_BxTxC=tgt_BxTxC,
             encoder_out=encoder_out,
             tgt_positions=tgt_positions,
@@ -870,7 +902,8 @@ class DiaModel(nn.Module):
             deterministic=deterministic,
             self_attn_mask=dec_self_attn_mask,
             cross_attn_mask=dec_cross_attn_mask,
-            precomputed_cross_attn_kv=None,
+            self_attention_cache=self_attention_cache,
+            cross_attention_cache=cross_attention_cache
         )
 
         return logits

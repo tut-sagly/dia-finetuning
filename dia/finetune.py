@@ -52,7 +52,7 @@ class TrainConfig:
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the Dia audio model")
-    parser.add_argument("--config", type=Path, default=Path("config.json"), help="Path to DiaConfig JSON file.")
+    parser.add_argument("--config", type=Path, default=Path("dia/config.json"), help="Path to DiaConfig JSON file.")
     parser.add_argument("--dataset", type=str, default="Paradoxia/opendata-iisys-hui", help="HuggingFace dataset identifier.")
     parser.add_argument("--hub_model", type=str, default="nari-labs/Dia-1.6B", help="HuggingFace hub model repository.")
     parser.add_argument("--run_name", type=str, default=None, help="Name of the TensorBoard run.")
@@ -222,13 +222,15 @@ def eval_step(model, val_loader, dia_cfg, dac_model, writer, global_step):
     writer.add_scalar('Loss/eval', avg_eval_loss, global_step)
 
     try:
+        
         dia_gen = Dia(dia_cfg, device)
         dia_gen.model, dia_gen.dac_model = model, dac_model
-        audio_no = dia_gen.generate(text=last_batch['raw_text'])
-        prompt_wave = last_batch['waveforms'][0][:, :, :44100]
-        tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-        torchaudio.save(tmp.name, prompt_wave.squeeze(0), 44100)
-        audio_with = dia_gen.generate(text=last_batch['raw_text'], audio_prompt_path=tmp.name)
+        with autocast():
+            audio_no = dia_gen.generate(text=last_batch['raw_text'])
+            prompt_wave = last_batch['waveforms'][0][:, :, :44100]
+            tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+            torchaudio.save(tmp.name, prompt_wave.squeeze(0), 44100)
+            audio_with = dia_gen.generate(text=last_batch['raw_text'], audio_prompt_path=tmp.name)
         os.unlink(tmp.name)
         writer.add_audio('Eval/no_prompt', audio_no, global_step, 44100)
         writer.add_audio('Eval/with_prompt', audio_with, global_step, 44100)
@@ -279,7 +281,6 @@ def main():
     model = DiaModel(dia_cfg)
     model.load_state_dict(torch.load(ckpt_file, map_location="cpu"))
     dac_model.to(device)
-
     train(model, dia_cfg, dac_model, hf_ds, train_cfg)
 
 
