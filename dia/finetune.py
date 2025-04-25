@@ -41,7 +41,7 @@ class TrainConfig:
     grad_accum_steps: int = 4
     learning_rate: float = 1e-5
     warmup_percentage: float = 0.001
-    audio_prompt_frac: float = 0.2
+    unconditional_frac: float = 0.15
     eval_step: int = 200
     save_step: int = 2000
     split_ratio: float = 0.9997
@@ -218,7 +218,11 @@ def train_step(model, batch, dia_cfg, train_cfg, opt, sched, writer, global_step
     """
     Perform a single training step: forward, loss, backward, update, log.
     """
-    use_prompt = random.random() < train_cfg.audio_prompt_frac
+    if random.random() < train_cfg.unconditional_frac:
+        pad_tok = dia_cfg.data.text_pad_value
+        batch['src_tokens'] = torch.full_like(batch['src_tokens'], pad_tok)
+        batch['enc_self_attn_mask'] = torch.zeros_like(batch['enc_self_attn_mask'])
+        batch['dec_cross_attn_mask'] = torch.zeros_like(batch['dec_cross_attn_mask'])
     with autocast():
         logits = model(
             src_BxS=batch['src_tokens'],
