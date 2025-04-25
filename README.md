@@ -1,3 +1,15 @@
+## Usage:
+```bash
+python -m dia.finetune \
+  --config path/to/dia/config.json \
+  --dataset Paradoxia/opendata-iisys-hui \
+  --hub_model nari-labs/Dia-1.6B \
+  --run_name my_experiment \
+  --output_dir ./checkpoints
+```
+
+## Original readme
+
 <p align="center">
 <a href="https://github.com/nari-labs/dia">
 <img src="./dia/static/images/banner.png">
