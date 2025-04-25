@@ -1,5 +1,14 @@
 ## Usage:
 ```bash
+git clone https://github.com/stlohrey/dia-finetuning.git
+cd dia-finetuning
+pip install -e .
+```
+
+then
+
+
+```bash
 python -m dia.finetune \
   --config path/to/dia/config.json \
   --dataset Paradoxia/opendata-iisys-hui \
