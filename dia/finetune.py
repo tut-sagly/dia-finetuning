@@ -220,7 +220,7 @@ def train_step(model, batch, dia_cfg, train_cfg, opt, sched, writer, global_step
     """
     if random.random() < train_cfg.unconditional_frac:
         pad_tok = dia_cfg.data.text_pad_value
-        batch['src_tokens'] = torch.full_like(batch['src_tokens'], pad_tok)
+        batch['src_tokens'] = torch.zeros_like(batch['src_tokens'])
         batch['enc_self_attn_mask'] = torch.zeros_like(batch['enc_self_attn_mask'])
         batch['dec_cross_attn_mask'] = torch.zeros_like(batch['dec_cross_attn_mask'])
     with autocast():
