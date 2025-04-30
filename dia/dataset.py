@@ -41,7 +41,6 @@ class LocalDiaDataset(Dataset):
 
 
 class HFDiaDataset(Dataset):
-    """Wrap a HuggingFace `datasets.Dataset` (streaming or not) that has `audio.array` & `text`."""
     def __init__(self, hf_dataset, config: DiaConfig, dac_model: dac.DAC):
         self.dataset = hf_dataset
         self.config = config

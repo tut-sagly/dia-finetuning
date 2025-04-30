@@ -175,13 +175,12 @@ def collate_fn(batch, config: DiaConfig, device: torch.device):
         'dec_cross_attn_mask': dec_cross_attn_mask,
         'waveforms': waveforms,
         'raw_text': texts[0],
-        # per-sample lengths including BOS and EOS
         'tgt_lens': torch.tensor(tgt_lens, dtype=torch.long, device=device),
     }
 
 def setup_loaders(dataset, dia_cfg: DiaConfig, train_cfg: TrainConfig, device):
     collate = lambda b: collate_fn(b, dia_cfg, device)
-    if isinstance(dataset, HFDiaDataset):
+    if isinstance(dataset, HFDiaIterDataset):
         total = dataset.total_examples if dataset.total_examples is not None else dataset.dataset.info.splits['train'].num_examples
         n_train = int(train_cfg.split_ratio * total)
         n_val = total - n_train
@@ -362,7 +361,7 @@ def eval_step(model, val_loader, dia_cfg, dac_model, writer, global_step):
         dia_gen = Dia(dia_cfg, device)
         dia_gen.model, dia_gen.dac_model = model, dac_model
         with torch.inference_mode():
-            audio_de = dia_gen.generate(text="[de]Das neue Samsung Galaxy S einundzwanzig Ultra fünf-G. Nur bis zum einundreißigsten Januar. Jetzt bei Media Markt.")#last_batch['raw_text'])
+            audio_de = dia_gen.generate(text="[de]Das Wetter heute ist mild und sonnig, mit nur leichtem Wind. Mit Regen ist erst im weiteren Verlauf der Woche zu rechnen. ")
             audio_en = dia_gen.generate(text="[en]Whether you want to train your own model from scratch or adapt a pre-trained model for your own use case, generally the larger part of the engineering effort goes into pre-processing the dataset for training.")
             audio_mx = dia_gen.generate(text="[de]Dies ist ein Test, der zeigen soll ob [en]in-code language switching  works with this system. ")
         writer.add_audio('Eval/de', audio_de, global_step, 44100)
@@ -469,12 +468,12 @@ def main():
             total2 = ds2.info.splits['train'].num_examples
             total = total1 + total2
             hf_ds = interleave_datasets([ds1, ds2])
-            dataset = HFDiaDataset(hf_ds, dia_cfg, dac_model)
+            dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
             # attach total examples for loader
             dataset.total_examples = total
         else:
             hf_ds = ds1
-            dataset = HFDiaDataset(hf_ds, dia_cfg, dac_model)
+            dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
 
     train_cfg = TrainConfig(
         run_name   = args.run_name   or TrainConfig.run_name,
