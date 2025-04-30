@@ -12,6 +12,7 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader, random_split
 from torch.cuda.amp import autocast
 from torch.utils.tensorboard import SummaryWriter
+from torch.nn.utils import clip_grad_norm_
 from transformers import get_scheduler
 import torch.nn.functional as F
 import bitsandbytes as bnb
@@ -296,11 +297,16 @@ def train_step(model, batch, dia_cfg, train_cfg, opt, sched, writer, step, globa
     loss.backward()
 
     # step & log
+
+    grad_norm = clip_grad_norm_(model.parameters(), max_norm=1e9)
+    writer.add_scalar('GradNorm/global', grad_norm, global_step)
     if (step + 1) % train_cfg.grad_accum_steps == 0:
         opt.step()
         sched.step()
         opt.zero_grad()
         true_loss = loss.item() * train_cfg.grad_accum_steps
+        current_lr = sched.get_last_lr()[0]
+        writer.add_scalar('LR', current_lr, global_step)
         writer.add_scalar('Loss/train', true_loss, global_step)
 
     return loss.item() * train_cfg.grad_accum_steps

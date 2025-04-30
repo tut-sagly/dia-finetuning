@@ -4,7 +4,7 @@ __pycache__/
 build/
 dist/
 wheels/
-runs/
+
 *.egg-info
 
 # Virtual environments
@@ -19,3 +19,5 @@ runs/
 
 .ruff_cache
 .ipynb_checkpoints
+runs/
+results/
