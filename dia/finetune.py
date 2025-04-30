@@ -78,6 +78,8 @@ def get_args() -> argparse.Namespace:
                         help="HuggingFace dataset name (if not using --csv_path).")
     parser.add_argument("--dataset2",  type=str,  default=None,
                         help="(Optional) second HF dataset to interleave (streaming)")
+    parser.add_argument("--streaming",   type=bool,  default=True,
+                        help="HuggingFace dataset streaming")
     parser.add_argument("--hub_model", type=str,  default="nari-labs/Dia-1.6B")
     parser.add_argument("--local_ckpt", type=str,  default=None)
     parser.add_argument("--csv_path",  type=Path, default=None,
@@ -460,20 +462,23 @@ def main():
         dataset = LocalDiaDataset(args.csv_path, args.audio_root, dia_cfg, dac_model)
     else:
         # load one or two streaming HF datasets
-        ds1 = load_dataset(args.dataset, split="train", streaming=True)
-        if args.dataset2:
-            ds2 = load_dataset(args.dataset2, split="train", streaming=True)
-            # sum their lengths
-            total1 = ds1.info.splits['train'].num_examples
-            total2 = ds2.info.splits['train'].num_examples
-            total = total1 + total2
-            hf_ds = interleave_datasets([ds1, ds2])
-            dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
-            # attach total examples for loader
-            dataset.total_examples = total
+        ds1 = load_dataset(args.dataset, split="train", streaming=args.streaming)
+        if args.streaming:
+            if args.dataset2:
+                ds2 = load_dataset(args.dataset2, split="train", streaming=True)
+                # sum their lengths
+                total1 = ds1.info.splits['train'].num_examples
+                total2 = ds2.info.splits['train'].num_examples
+                total = total1 + total2
+                hf_ds = interleave_datasets([ds1, ds2])
+                dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
+                # attach total examples for loader
+                dataset.total_examples = total
+            else:
+                hf_ds = ds1
+                dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
         else:
-            hf_ds = ds1
-            dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
+            dataset = HFDiaDataset(ds1, dia_cfg, dac_model)
 
     train_cfg = TrainConfig(
         run_name   = args.run_name   or TrainConfig.run_name,
