@@ -183,7 +183,7 @@ class Dia:
         max_len = self.config.data.text_length
 
         byte_text = text.encode("utf-8")
-        replaced_bytes = byte_text.replace(b"[S1]", b"\x01").replace(b"[S2]", b"\x02")
+        replaced_bytes = byte_text.replace(b"[de]", b"\x04").replace(b"[en]", b"\x03")
         text_tokens = list(replaced_bytes)
 
         current_len = len(text_tokens)
