@@ -66,7 +66,7 @@ class TrainConfig:
     shuffle_buffer_size: int = None  # for streaming shuffle
     seed: int = 42                # seed for reproducibility
     runs_dir: Path = Path("runs")
-    run_name: str = "dia_finetune_langtag"
+    run_name: str = "dia_finetune_langtag_4xC0"
     output_dir: Path = Path(".")
 
 
@@ -90,116 +90,6 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed for reproducibility.")
     return parser.parse_args()
-
-
-'''class LocalDiaDataset(Dataset):
-    """Load from a local CSV (sep='|') + an audio folder."""
-    def __init__(self, csv_path: Path, audio_root: Path, config: DiaConfig, dac_model: dac.DAC):
-        self.df = pd.read_csv(csv_path, sep=r"\s*\|\s*", engine="python",
-                              names=["audio","text"] )
-        self.audio_root = audio_root
-        self.config = config
-        self.dac_model = dac_model
-
-    def __len__(self) -> int:
-        return len(self.df)
-
-    def __getitem__(self, idx: int):
-        row = self.df.iloc[idx]
-        text = row["text"]
-        audio_path = self.audio_root / row["audio"]
-        waveform, sr = torchaudio.load(audio_path)
-        if sr != 44100:
-            waveform = torchaudio.functional.resample(waveform, sr, 44100)
-        waveform = waveform.unsqueeze(0)
-        with torch.no_grad():
-            audio_tensor = self.dac_model.preprocess(
-                waveform, 44100
-            ).to(next(self.dac_model.parameters()).device)
-            _, encoded, *_ = self.dac_model.encode(audio_tensor, n_quantizers=None)
-            encoded = encoded.squeeze(0).transpose(0, 1)
-        return text, encoded, waveform
-
-
-
-class HFDiaDataset(Dataset):
-    """Wrap a HuggingFace `datasets.Dataset` (streaming or not) that has `audio.array` & `text`."""
-    def __init__(self, hf_dataset, config: DiaConfig, dac_model: dac.DAC):
-        self.dataset = hf_dataset
-        self.config = config
-        self.dac_model = dac_model
-
-    def __len__(self) -> int:
-        return len(self.dataset)
-
-    def __getitem__(self, idx: int):
-        sample = self.dataset[idx]
-        lang = sample.get("language", "")
-        text = f"[{lang}]" + sample["text"]
-        audio_info = sample["audio"]
-        waveform = torch.tensor(audio_info["array"], dtype=torch.float32)
-        if waveform.ndim == 1:
-            waveform = waveform.unsqueeze(0).unsqueeze(0)
-        elif waveform.ndim == 2:
-            waveform = waveform.unsqueeze(0)
-        sr = audio_info.get("sampling_rate", 44100)
-        if sr != 44100:
-            waveform = torchaudio.functional.resample(waveform, sr, 44100)
-        with torch.no_grad():
-            audio_tensor = (
-                self.dac_model.preprocess(waveform, 44100)
-                .to(next(self.dac_model.parameters()).device)
-            )
-            _, encoded, *_ = self.dac_model.encode(audio_tensor, n_quantizers=None)
-            encoded = encoded.squeeze(0).transpose(0, 1)
-        return text, encoded, waveform
-
-
-
-# ---------- streaming iterable wrapper ----------
-class HFDiaIterDataset(torch.utils.data.IterableDataset):
-    """Iterable wrapper for a HF streaming Dataset that has `audio.array` & `text`."""
-    def __init__(self, hf_iterable, config: DiaConfig, dac_model: dac.DAC):
-        super().__init__()
-        self.iterable = hf_iterable
-        self.config = config
-        self.dac_model = dac_model
-
-    def __iter__(self):
-        for sample in self.iterable:
-            lang = sample.get("language", "")
-            text = f"[{lang}]" + sample.get('text_scribe')
-            audio_info = sample['audio']
-            waveform = torch.tensor(audio_info['array'], dtype=torch.float32)
-            if waveform.ndim == 1:
-                waveform = waveform.unsqueeze(0).unsqueeze(0)
-            elif waveform.ndim == 2:
-                waveform = waveform.unsqueeze(0)
-            sr = audio_info.get('sampling_rate', 44100)
-            if sr != 44100:
-                waveform = torchaudio.functional.resample(waveform, sr, 44100)
-            with torch.no_grad():
-                audio_tensor = (
-                    self.dac_model.preprocess(waveform, 44100)
-                    .to(next(self.dac_model.parameters()).device)
-                )
-                _, encoded, *_ = self.dac_model.encode(audio_tensor, n_quantizers=None)
-                encoded = encoded.squeeze(0).transpose(0, 1)
-            yield text, encoded, waveform'''
-
-
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-logger = logging.getLogger(__name__)
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.backends.cudnn.benchmark = True  # Enable CuDNN autotuner
-
-
 
 
 
@@ -466,11 +356,13 @@ def eval_step(model, val_loader, dia_cfg, dac_model, writer, global_step):
         dia_gen = Dia(dia_cfg, device)
         dia_gen.model, dia_gen.dac_model = model, dac_model
         with torch.inference_mode():
-            audio_de = dia_gen.generate(text="[de]Das neue Samsung Galaxy S 21 Ultra 5G. Nur bis zum einundreißigsten Januar. Jetzt bei Media Markt.")#last_batch['raw_text'])
+            audio_de = dia_gen.generate(text="[de]Das neue Samsung Galaxy S einundzwanzig Ultra fünf-G. Nur bis zum einundreißigsten Januar. Jetzt bei Media Markt.")#last_batch['raw_text'])
             audio_en = dia_gen.generate(text="[en]Whether you want to train your own model from scratch or adapt a pre-trained model for your own use case, generally the larger part of the engineering effort goes into pre-processing the dataset for training.")
+            audio_mx = dia_gen.generate(text="[de]Dies ist ein Test, der zeigen soll ob [en]in-code language switching  works with this system. ")
         writer.add_audio('Eval/de', audio_de, global_step, 44100)
         writer.add_audio('Eval/en', audio_en, global_step, 44100)
-        del audio_de, audio_en   
+        writer.add_audio('Eval/mx', audio_mx, global_step, 44100)
+        del audio_de, audio_en, audio_mx   
         gc.collect()
         torch.cuda.empty_cache()
         
