@@ -25,7 +25,8 @@ class LocalDiaDataset(Dataset):
 
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
-        text = "[de]"+row["text"]
+        lang = sample.get("language", None)
+        text = f"[{lang}]" + sample["text"] if lang else sample["text"]
         audio_path = self.audio_root / row["audio"]
         waveform, sr = torchaudio.load(audio_path)
         if sr != 44100:
@@ -51,8 +52,8 @@ class HFDiaDataset(Dataset):
 
     def __getitem__(self, idx: int):
         sample = self.dataset[idx]
-        lang = sample.get("language", "")
-        text = f"[{lang}]" + sample["text"]
+        lang = sample.get("language", None)
+        text = f"[{lang}]" + sample["text"] if lang else sample["text"]
         audio_info = sample["audio"]
         waveform = torch.tensor(audio_info["array"], dtype=torch.float32)
         if waveform.ndim == 1:
@@ -83,8 +84,8 @@ class HFDiaIterDataset(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         for sample in self.dataset:
-            lang = sample.get("language", "")
-            text = f"[{lang}]" + sample.get('text')
+            lang = sample.get("language", None)
+            text = f"[{lang}]" + sample["text"] if lang else sample["text"]
             audio_info = sample['audio']
             waveform = torch.tensor(audio_info['array'], dtype=torch.float32)
             if waveform.ndim == 1:
