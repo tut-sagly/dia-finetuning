@@ -183,7 +183,27 @@ class Dia:
         max_len = self.config.data.text_length
 
         byte_text = text.encode("utf-8")
-        replaced_bytes = byte_text.replace(b"[de]", b"\x04").replace(b"[en]", b"\x03")
+        
+        
+        replaced_bytes = byte_text
+
+        LANG2BYTE = {
+            "en": 3,
+            "de": 4,
+            "fr": 5,
+            "es": 6,
+            "it": 7,
+            "nl": 14,
+            "pl": 15,
+            "pt": 16,
+            "tr": 17,
+            "hu": 18,
+        }
+
+        for lang, byte_val in LANG2BYTE.items():
+            tag = f"[{lang}]".encode("ascii")        # e.g. b"[de]"
+            code = bytes([byte_val])                 # e.g. b"\x04"
+            replaced_bytes = replaced_bytes.replace(tag, code)
         text_tokens = list(replaced_bytes)
 
         current_len = len(text_tokens)

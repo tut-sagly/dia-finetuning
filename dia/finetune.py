@@ -17,7 +17,7 @@ from transformers import get_scheduler
 import torch.nn.functional as F
 import bitsandbytes as bnb
 from tqdm import tqdm
-from datasets import load_dataset, interleave_datasets
+from datasets import load_dataset, interleave_datasets, get_dataset_config_names
 from huggingface_hub import hf_hub_download
 import math
 import gc
@@ -27,7 +27,9 @@ from .config import DiaConfig
 from .layers import DiaModel
 from .model import Dia
 from .audio import build_delay_indices, apply_audio_delay
-from.dataset import *
+from .dataset import *
+from .cml_tts import load_cml_tts_streamed
+
 
 # Configure logging
 logging.basicConfig(
@@ -53,13 +55,23 @@ LANG2BYTE = {
     
 }
 
+test_sentences = {
+    "nl": "Dit is een iets langere testzin met meerdere bijzinnen, bedoeld om de streamingfunctionaliteit en de juiste tag-toevoeging te verifiëren.",
+    "fr": "Ceci est une phrase de test un peu plus longue, comprenant plusieurs propositions et suffisamment de mots pour valider le traitement en continu et le balisage.",
+    "de": "Dies ist ein etwas längerer Testsatz, der mehrere Nebensätze enthält und ausreichend Wörter bietet, um die Verarbeitung im Streaming-Modus und das Tagging zu prüfen.",
+    "it": "Questa è una frase di prova un po’ più lunga, che include diverse proposizioni e un numero di parole sufficiente per testare lo streaming e l’assegnazione del tag.",
+    "pl": "To jest nieco dłuższe zdanie testowe, zawierające kilka zdań podrzędnych i wystarczającą liczbę słów, aby sprawdzić przetwarzanie strumieniowe oraz oznaczanie.",
+    "pt": "Esta é uma frase de teste um pouco mais longa, com várias orações e palavras suficientes para verificar o processamento em streaming e a marcação correta.",
+    "es": "Esta es una frase de prueba un poco más larga, que incluye varias cláusulas y suficientes palabras para comprobar el funcionamiento en streaming y el etiquetado adecuado."
+}
+
 @dataclass
 class TrainConfig:
-    epochs: int = 5
+    epochs: int = 1
     batch_size: int = 2
     grad_accum_steps: int = 2
     learning_rate: float = 1e-5
-    warmup_percentage: float = 0.01
+    warmup_steps: int = 500
     unconditional_frac: float = 0.15
     eval_step: int = 200
     save_step: int = 2000
@@ -67,8 +79,8 @@ class TrainConfig:
     shuffle_buffer_size: int = None  # for streaming shuffle
     seed: int = 42                # seed for reproducibility
     runs_dir: Path = Path("runs")
-    run_name: str = "dia_finetune_langtag_4xC0"
-    output_dir: Path = Path(".")
+    run_name: str = "dia_finetune_mml"
+    output_dir: Path = Path("./dia_finetune_mml")
 
 
 def get_args() -> argparse.Namespace:
@@ -92,6 +104,8 @@ def get_args() -> argparse.Namespace:
                         help="Buffer size for streaming dataset shuffle.")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed for reproducibility.")
+    parser.add_argument("--half", type=bool, default=True, help="load model in fp16")
+    parser.add_argument("--compile", type=bool, default=True, help="torch compile model")
     return parser.parse_args()
 
 
@@ -219,8 +233,8 @@ def setup_optimizer_and_scheduler(model, train_loader, train_cfg):
     total_training_steps = steps_per_epoch * train_cfg.epochs
     sched = get_scheduler(
         'cosine', opt,
-        num_warmup_steps=int(train_cfg.warmup_percentage * total_training_steps),
-        num_training_steps=total_training_steps
+        num_warmup_steps=train_cfg.warmup_steps / train_cfg.grad_accum_steps,
+        num_training_steps=total_training_steps / train_cfg.grad_accum_steps
     )
     return opt, sched
 
@@ -363,13 +377,14 @@ def eval_step(model, val_loader, dia_cfg, dac_model, writer, global_step):
         dia_gen = Dia(dia_cfg, device)
         dia_gen.model, dia_gen.dac_model = model, dac_model
         with torch.inference_mode():
-            audio_de = dia_gen.generate(text="[de]Das Wetter heute ist mild und sonnig, mit nur leichtem Wind. Mit Regen ist erst im weiteren Verlauf der Woche zu rechnen. ")
-            audio_en = dia_gen.generate(text="[en]Whether you want to train your own model from scratch or adapt a pre-trained model for your own use case, generally the larger part of the engineering effort goes into pre-processing the dataset for training.")
-            audio_mx = dia_gen.generate(text="[de]Dies ist ein Test, der zeigen soll ob [en]in-code language switching  works with this system. ")
-        writer.add_audio('Eval/de', audio_de, global_step, 44100)
-        writer.add_audio('Eval/en', audio_en, global_step, 44100)
-        writer.add_audio('Eval/mx', audio_mx, global_step, 44100)
-        del audio_de, audio_en, audio_mx   
+            for lang_code, sentence in test_sentences.items():
+                text = f"[{lang_code}]{sentence}"
+                try:
+                    audio = dia_gen.generate(text=text)
+                    writer.add_audio(f"Eval/{lang_code}", audio, global_step, 44100)
+                except:
+                     logger.exception(f"Error synthesizing test sentence in {lang_code}.")
+                del audio
         gc.collect()
         torch.cuda.empty_cache()
         
@@ -450,6 +465,13 @@ def train(model, dia_cfg: DiaConfig, dac_model: dac.DAC, dataset, train_cfg: Tra
         logger.info(f"Saved end-of-epoch checkpoint: {ckpt_e}")
 
 
+
+
+
+
+
+
+
 def main():
     args = get_args()
     dia_cfg = DiaConfig.load(args.config)
@@ -480,6 +502,8 @@ def main():
         else:
             dataset = HFDiaDataset(ds1, dia_cfg, dac_model)
 
+    #dataset = load_cml_tts_streamed(dia_cfg, dac_model)
+
     train_cfg = TrainConfig(
         run_name   = args.run_name   or TrainConfig.run_name,
         output_dir = args.output_dir or TrainConfig.output_dir,
@@ -493,9 +517,12 @@ def main():
     else:
         ckpt_file = hf_hub_download(args.hub_model, filename="dia-v0_1.pth")
     model = DiaModel(dia_cfg)
+    if args.half:
+        model=model.half()
+    if args.compile:
+        model = torch.compile(model, backend="inductor")
     model.load_state_dict(torch.load(ckpt_file, map_location="cpu"))
-    model=model.half()
-    model = torch.compile(model, backend="inductor")
+    
 
     # start training
     train(model, dia_cfg, dac_model, dataset, train_cfg)

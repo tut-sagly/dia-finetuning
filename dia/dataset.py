@@ -25,7 +25,7 @@ class LocalDiaDataset(Dataset):
 
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
-        text = row["text"]
+        text = "[de]"+row["text"]
         audio_path = self.audio_root / row["audio"]
         waveform, sr = torchaudio.load(audio_path)
         if sr != 44100:
@@ -77,14 +77,14 @@ class HFDiaIterDataset(torch.utils.data.IterableDataset):
     """Iterable wrapper for a HF streaming Dataset that has `audio.array` & `text`."""
     def __init__(self, hf_iterable, config: DiaConfig, dac_model: dac.DAC):
         super().__init__()
-        self.iterable = hf_iterable
+        self.dataset = hf_iterable
         self.config = config
         self.dac_model = dac_model
 
     def __iter__(self):
-        for sample in self.iterable:
+        for sample in self.dataset:
             lang = sample.get("language", "")
-            text = f"[{lang}]" + sample.get('text_scribe')
+            text = f"[{lang}]" + sample.get('text')
             audio_info = sample['audio']
             waveform = torch.tensor(audio_info['array'], dtype=torch.float32)
             if waveform.ndim == 1:
