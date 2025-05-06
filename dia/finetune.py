@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.backends.cudnn.benchmark = True
 
+#bytes for language tag replacement
 LANG2BYTE = {
     "en": 3,
     "de": 4,
