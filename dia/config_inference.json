@@ -24,7 +24,7 @@
         "dropout": 0.0
     },
     "training": {
-        "dtype": "bfloat16"
+        "dtype": "float32"
     },
     "data": {
         "text_length": 512,

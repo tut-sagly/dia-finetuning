@@ -28,7 +28,7 @@ from .layers import DiaModel
 from .model import Dia
 from .audio import build_delay_indices, apply_audio_delay
 from .dataset import *
-from .cml_tts import load_cml_tts_streamed
+from .interleaved_datasets import load_cml_tts_streamed, load_common_voice17_streamed
 
 
 # Configure logging
@@ -57,13 +57,16 @@ LANG2BYTE = {
 }
 
 test_sentences = {
-    "nl": "Dit is een iets langere testzin met meerdere bijzinnen, bedoeld om de streamingfunctionaliteit en de juiste tag-toevoeging te verifiëren.",
-    "fr": "Ceci est une phrase de test un peu plus longue, comprenant plusieurs propositions et suffisamment de mots pour valider le traitement en continu et le balisage.",
-    "de": "Dies ist ein etwas längerer Testsatz, der mehrere Nebensätze enthält und ausreichend Wörter bietet, um die Verarbeitung im Streaming-Modus und das Tagging zu prüfen.",
-    "it": "Questa è una frase di prova un po’ più lunga, che include diverse proposizioni e un numero di parole sufficiente per testare lo streaming e l’assegnazione del tag.",
-    "pl": "To jest nieco dłuższe zdanie testowe, zawierające kilka zdań podrzędnych i wystarczającą liczbę słów, aby sprawdzić przetwarzanie strumieniowe oraz oznaczanie.",
-    "pt": "Esta é uma frase de teste um pouco mais longa, com várias orações e palavras suficientes para verificar o processamento em streaming e a marcação correta.",
-    "es": "Esta es una frase de prueba un poco más larga, que incluye varias cláusulas y suficientes palabras para comprobar el funcionamiento en streaming y el etiquetado adecuado."
+    "en": "In order to fully assess performance and the accuracy of language tags, this test sentence contains multiple subordinate clauses, varied punctuation, and a sufficient word count.",
+    "de": "Um Leistung und die Korrektheit der Sprach-Tags umfassend zu prüfen, enthält dieser Testsatz mehrere Nebensätze, unterschiedliche Zeichensetzung und eine ausreichende Wortzahl.",
+    "fr": "Pour évaluer pleinement les performances et la précision des balises de langue, cette phrase de test comporte plusieurs propositions subordonnées, une ponctuation variée et un nombre de mots suffisant.",
+    "es": "Para evaluar completamente el rendimiento y la precisión de las etiquetas de idioma, esta frase de prueba incluye varias oraciones subordinadas, puntuación diversa y la cantidad de palabras necesaria.",
+    "it": "Per valutare appieno le prestazioni e la precisione dei tag di lingua, questa frase di prova contiene più proposizioni subordinate, punteggiatura varia e un numero adeguato di parole.",
+    "nl": "Om de prestaties en de nauwkeurigheid van de taaltags volledig te beoordelen, bevat deze testzin meerdere ondergeschikte zinnen, gevarieerde interpunctie en een voldoende woordenaantal.",
+    "pl": "Aby w pełni ocenić wydajność i poprawność tagów językowych, to zdanie testowe zawiera kilka zdań podrzędnych, zróżnicowaną interpunkcję i wystarczającą liczbę słów.",
+    "pt": "Para avaliar completamente o desempenho e a precisão das marcas de idioma, esta frase de teste contém várias orações subordinadas, pontuação diversa e um número adequado de palavras.",
+    "tr": "Akışı elemeden performansı ve dil etiketlerinin doğruluğunu tam olarak değerlendirmek için bu test cümlesi birden fazla yan cümle, çeşitli noktalama işaretleri ve yeterli kelime sayısı içerir.",
+    "hu": "A teljesítmény és a nyelvcímkék pontosságának átfogó értékeléséhez ez a tesztmondat több mellékmondatot, változatos írásjeleket és elegendő szószámot tartalmazza."
 }
 
 @dataclass
@@ -80,8 +83,8 @@ class TrainConfig:
     shuffle_buffer_size: int = None  # for streaming shuffle
     seed: int = 42                # seed for reproducibility
     runs_dir: Path = Path("runs")
-    run_name: str = "dia_finetune_mml"
-    output_dir: Path = Path("./dia_finetune_mml")
+    run_name: str = "dia_finetune_cv"
+    output_dir: Path = Path(".cpkts/dia_finetune_cv")
 
 
 def get_args() -> argparse.Namespace:
@@ -478,32 +481,40 @@ def main():
     dia_cfg = DiaConfig.load(args.config)
     dac_model = dac.DAC.load(dac.utils.download()).to(device)
 
-    # choose dataset
-    if args.csv_path:
-        if not args.audio_root:
-            raise ValueError("`--audio_root` must be set when using `--csv_path`")
-        dataset = LocalDiaDataset(args.csv_path, args.audio_root, dia_cfg, dac_model)
-    else:
-        # load one or two streaming HF datasets
-        ds1 = load_dataset(args.dataset, split="train", streaming=args.streaming)
-        if args.streaming:
-            if args.dataset2:
-                ds2 = load_dataset(args.dataset2, split="train", streaming=True)
-                # sum their lengths
-                total1 = ds1.info.splits['train'].num_examples
-                total2 = ds2.info.splits['train'].num_examples
-                total = total1 + total2
-                hf_ds = interleave_datasets([ds1, ds2])
-                dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
-                # attach total examples for loader
-                dataset.total_examples = total
-            else:
-                hf_ds = ds1
-                dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
-        else:
-            dataset = HFDiaDataset(ds1, dia_cfg, dac_model)
+
+    dataset=None
+
 
     #dataset = load_cml_tts_streamed(dia_cfg, dac_model)
+    dataset = load_common_voice17_streamed(dia_cfg, dac_model)
+
+    # choose dataset
+    if not dataset:
+        if args.csv_path:
+            if not args.audio_root:
+                raise ValueError("`--audio_root` must be set when using `--csv_path`")
+            dataset = LocalDiaDataset(args.csv_path, args.audio_root, dia_cfg, dac_model)
+        else:
+            # load one or two streaming HF datasets
+            ds1 = load_dataset(args.dataset, split="train", streaming=args.streaming)
+            if args.streaming:
+                if args.dataset2:
+                    ds2 = load_dataset(args.dataset2, split="train", streaming=True)
+                    # sum their lengths
+                    total1 = ds1.info.splits['train'].num_examples
+                    total2 = ds2.info.splits['train'].num_examples
+                    total = total1 + total2
+                    hf_ds = interleave_datasets([ds1, ds2])
+                    dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
+                    # attach total examples for loader
+                    dataset.total_examples = total
+                else:
+                    hf_ds = ds1
+                    dataset = HFDiaIterDataset(hf_ds, dia_cfg, dac_model)
+            else:
+                dataset = HFDiaDataset(ds1, dia_cfg, dac_model)
+
+    
 
     train_cfg = TrainConfig(
         run_name   = args.run_name   or TrainConfig.run_name,

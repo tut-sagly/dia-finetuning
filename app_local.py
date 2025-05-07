@@ -21,9 +21,10 @@ parser.add_argument(
     "--device", type=str, default=None, help="Force device (e.g., 'cuda', 'mps', 'cpu')"
 )
 parser.add_argument("--share", action="store_true", help="Enable Gradio sharing")
-parser.add_argument("--local_ckpt", type=str, default=None, help="path to your local checkpoint")
-parser.add_argument("--half", type=bool, default=True, help="load model in fp16")
-parser.add_argument("--compiled", type=bool, default=True, help="torch compiled model")
+parser.add_argument("--local_ckpt", type=str, default="ckpt_epoch1_fp32.pth", help="path to your local checkpoint")
+parser.add_argument("--config", type=str, default="dia/config_inference.json", help="path to your inference")
+parser.add_argument("--half", type=bool, default=False, help="load model in fp16")
+parser.add_argument("--compile", type=bool, default=False, help="torch compile model")
 
 args = parser.parse_args()
 
@@ -46,7 +47,7 @@ print(f"Using device: {device}")
 print("Loading Nari model...")
 try:
     # Use the function from inference.py
-    cfg = DiaConfig.load("dia/config.json")
+    """cfg = DiaConfig.load("dia/config.json")
 
     ptmodel = DiaModel(cfg)
     if args.half:
@@ -57,12 +58,19 @@ try:
     state = torch.load(args.local_ckpt, map_location="cpu")
     ptmodel.load_state_dict(state)
     ptmodel = ptmodel.to(device).eval()
-    ptmodel.float()
+    #ptmodel.float()
     model = Dia(cfg, device)
     model.model = ptmodel
     dac_model = dac.DAC.load(dac.utils.download())
     dac_model = dac_model.to(device)
-    model.dac_model=dac_model
+    model.dac_model=dac_model"""
+
+
+    model = Dia.from_local(
+    config_path=args.config,
+    checkpoint_path=args.local_ckpt,
+    device=device,)
+
 except Exception as e:
     print(f"Error loading Nari model: {e}")
     raise
