@@ -25,7 +25,7 @@ python -m dia.finetune \
   --dataset Paradoxia/opendata-iisys-hui \
   --hub_model nari-labs/Dia-1.6B \
   --run_name my_experiment \
-  --output_dir ./checkpoints
+  --output_dir ./checkpoints \
 ```
 
 ---
@@ -54,8 +54,8 @@ python -m dia.finetune \
 | `--output_dir`          | `Path` | `.cpkts/{run_name}`            | Directory for saving checkpoints.                                |                                    |
 | `--shuffle_buffer_size` | `int`  | `None`                         | Buffer size for streaming shuffle.                               |                                    |
 | `--seed`                | `int`  | `42`                           | Random seed for reproducibility.                                 |                                    |
-| `--half`                | `bool` | `True`                         | Load model in FP16.                                              |                                    |
-| `--compile`             | `bool` | `True`                         | Enable `torch.compile` (Inductor backend).                       |                                    |
+| `--half`                | `bool` | `False`                        | Load model in FP16.                                              |                                    |
+| `--compile`             | `bool` | `False`                        | Enable `torch.compile` (Inductor backend).                       |                                    |
 
 ---
 
