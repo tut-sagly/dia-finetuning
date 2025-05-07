@@ -59,14 +59,14 @@ LANG2BYTE = {
 test_sentences = {
     "en": "In order to fully assess performance and the accuracy of language tags, this test sentence contains multiple subordinate clauses, varied punctuation, and a sufficient word count.",
     "de": "Um Leistung und die Korrektheit der Sprach-Tags umfassend zu prüfen, enthält dieser Testsatz mehrere Nebensätze, unterschiedliche Zeichensetzung und eine ausreichende Wortzahl.",
-    "fr": "Pour évaluer pleinement les performances et la précision des balises de langue, cette phrase de test comporte plusieurs propositions subordonnées, une ponctuation variée et un nombre de mots suffisant.",
-    "es": "Para evaluar completamente el rendimiento y la precisión de las etiquetas de idioma, esta frase de prueba incluye varias oraciones subordinadas, puntuación diversa y la cantidad de palabras necesaria.",
-    "it": "Per valutare appieno le prestazioni e la precisione dei tag di lingua, questa frase di prova contiene più proposizioni subordinate, punteggiatura varia e un numero adeguato di parole.",
-    "nl": "Om de prestaties en de nauwkeurigheid van de taaltags volledig te beoordelen, bevat deze testzin meerdere ondergeschikte zinnen, gevarieerde interpunctie en een voldoende woordenaantal.",
-    "pl": "Aby w pełni ocenić wydajność i poprawność tagów językowych, to zdanie testowe zawiera kilka zdań podrzędnych, zróżnicowaną interpunkcję i wystarczającą liczbę słów.",
-    "pt": "Para avaliar completamente o desempenho e a precisão das marcas de idioma, esta frase de teste contém várias orações subordinadas, pontuação diversa e um número adequado de palavras.",
-    "tr": "Akışı elemeden performansı ve dil etiketlerinin doğruluğunu tam olarak değerlendirmek için bu test cümlesi birden fazla yan cümle, çeşitli noktalama işaretleri ve yeterli kelime sayısı içerir.",
-    "hu": "A teljesítmény és a nyelvcímkék pontosságának átfogó értékeléséhez ez a tesztmondat több mellékmondatot, változatos írásjeleket és elegendő szószámot tartalmazza."
+    #"fr": "Pour évaluer pleinement les performances et la précision des balises de langue, cette phrase de test comporte plusieurs propositions subordonnées, une ponctuation variée et un nombre de mots suffisant.",
+    #"es": "Para evaluar completamente el rendimiento y la precisión de las etiquetas de idioma, esta frase de prueba incluye varias oraciones subordinadas, puntuación diversa y la cantidad de palabras necesaria.",
+    #"it": "Per valutare appieno le prestazioni e la precisione dei tag di lingua, questa frase di prova contiene più proposizioni subordinate, punteggiatura varia e un numero adeguato di parole.",
+    #"nl": "Om de prestaties en de nauwkeurigheid van de taaltags volledig te beoordelen, bevat deze testzin meerdere ondergeschikte zinnen, gevarieerde interpunctie en een voldoende woordenaantal.",
+    #"pl": "Aby w pełni ocenić wydajność i poprawność tagów językowych, to zdanie testowe zawiera kilka zdań podrzędnych, zróżnicowaną interpunkcję i wystarczającą liczbę słów.",
+    #"pt": "Para avaliar completamente o desempenho e a precisão das marcas de idioma, esta frase de teste contém várias orações subordinadas, pontuação diversa e um número adequado de palavras.",
+    #"tr": "Akışı elemeden performansı ve dil etiketlerinin doğruluğunu tam olarak değerlendirmek için bu test cümlesi birden fazla yan cümle, çeşitli noktalama işaretleri ve yeterli kelime sayısı içerir.",
+    #"hu": "A teljesítmény és a nyelvcímkék pontosságának átfogó értékeléséhez ez a tesztmondat több mellékmondatot, változatos írásjeleket és elegendő szószámot tartalmazza."
 }
 
 @dataclass
@@ -83,8 +83,8 @@ class TrainConfig:
     shuffle_buffer_size: int = None  # for streaming shuffle
     seed: int = 42                # seed for reproducibility
     runs_dir: Path = Path("runs")
-    run_name: str = "dia_finetune_cv"
-    output_dir: Path = Path(".cpkts/dia_finetune_cv")
+    run_name: str = "dia_finetune_test"
+    output_dir: Path = Path(".cpkts/dia_finetune_test ")
 
 
 def get_args() -> argparse.Namespace:
@@ -94,8 +94,8 @@ def get_args() -> argparse.Namespace:
                         help="HuggingFace dataset name (if not using --csv_path).")
     parser.add_argument("--dataset2",  type=str,  default=None,
                         help="(Optional) second HF dataset to interleave (streaming)")
-    parser.add_argument("--streaming",   type=bool,  default=True,
-                        help="HuggingFace dataset streaming")
+    parser.add_argument("--streaming",action="store_true",
+                        help="Enable HuggingFace dataset streaming")
     parser.add_argument("--hub_model", type=str,  default="nari-labs/Dia-1.6B")
     parser.add_argument("--local_ckpt", type=str,  default=None)
     parser.add_argument("--csv_path",  type=Path, default=None,
@@ -499,6 +499,7 @@ def main():
         else:
             # load one or two streaming HF datasets
             ds1 = load_dataset(args.dataset, split="train", streaming=args.streaming)
+            
             if args.streaming:
                 if args.dataset2:
                     ds2 = load_dataset(args.dataset2, split="train", streaming=True)
