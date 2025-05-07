@@ -490,7 +490,7 @@ def main():
 
 
     #dataset = load_cml_tts_streamed(dia_cfg, dac_model)
-    dataset = load_common_voice17_streamed(dia_cfg, dac_model)
+    #dataset = load_common_voice17_streamed(dia_cfg, dac_model)
 
     # choose dataset
     if not dataset:
