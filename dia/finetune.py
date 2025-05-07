@@ -79,12 +79,12 @@ class TrainConfig:
     unconditional_frac: float = 0.15
     eval_step: int = 200
     save_step: int = 2000
-    split_ratio: float = 0.9997
+    split_ratio: float = 0.997
     shuffle_buffer_size: int = None  # for streaming shuffle
     seed: int = 42                # seed for reproducibility
     runs_dir: Path = Path("runs")
-    run_name: str = "dia_finetune_test"
-    output_dir: Path = Path(".cpkts/dia_finetune_test ")
+    run_name: str = "dia_finetune_cv"
+    output_dir: Path = Path(".cpkts/dia_finetune_cv ")
 
 
 def get_args() -> argparse.Namespace:
@@ -108,8 +108,8 @@ def get_args() -> argparse.Namespace:
                         help="Buffer size for streaming dataset shuffle.")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed for reproducibility.")
-    parser.add_argument("--half", type=bool, default=True, help="load model in fp16")
-    parser.add_argument("--compile", type=bool, default=True, help="torch compile model")
+    parser.add_argument("--half", action="store_true", help="load model in fp16")
+    parser.add_argument("--compile", action="store_true", help="torch compile model")
     return parser.parse_args()
 
 
@@ -120,6 +120,7 @@ def collate_fn(batch, config: DiaConfig, device: torch.device):
     texts, encodings, waveforms = zip(*batch)
 
     # -- Text inputs ---------------------------------------------------------
+
     max_text = config.data.text_length
     pad_tok = config.data.text_pad_value
     text_ids = []
@@ -140,6 +141,7 @@ def collate_fn(batch, config: DiaConfig, device: torch.device):
     enc_self_attn_mask = (src_pad.unsqueeze(2) & src_pad.unsqueeze(1)).unsqueeze(1)
 
     # -- Audio codes --------------------------------------------------------
+
     max_audio = config.data.audio_length
     # per-sample lengths (clipped to max_audio)
     seq_lens = [min(e.size(0), max_audio) for e in encodings]
@@ -488,7 +490,7 @@ def main():
 
 
     #dataset = load_cml_tts_streamed(dia_cfg, dac_model)
-    #dataset = load_common_voice17_streamed(dia_cfg, dac_model)
+    dataset = load_common_voice17_streamed(dia_cfg, dac_model)
 
     # choose dataset
     if not dataset:
