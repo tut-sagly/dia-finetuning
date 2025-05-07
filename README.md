@@ -1,7 +1,7 @@
 # Dia TTS Model Fine-Tuning
 
 A training pipeline for fine-tuning the **Dia** TTS model using Hugging Face datasets or local audio–text pairs. Supports mixed-precision, model compilation, 8-bit optimizers, streaming datasets, and evaluation via TensorBoard.
-For multilingual training, the pipeline supports language-tags ```[iso_code]```, for training multilingual, you have to provide a dataset with a language column containing the iso_code.
+For multilingual training, the pipeline supports language-tags ```[iso_code]```.For training a multilingual model, you have to provide a dataset with a language column containing the iso_code.
 
 
 ---
