@@ -201,7 +201,9 @@ def collate_fn(batch, config: DiaConfig, device: torch.device):
 def setup_loaders(dataset, dia_cfg: DiaConfig, train_cfg: TrainConfig, device):
     collate = lambda b: collate_fn(b, dia_cfg, device)
     if isinstance(dataset, HFDiaIterDataset):
-        total = dataset.total_examples if dataset.total_examples is not None else dataset.dataset.info.splits['train'].num_examples
+        total = getattr(dataset, "total_examples", None)
+        if total is None:
+            total = dataset.dataset.info.splits["train"].num_examples
         n_train = int(train_cfg.split_ratio * total)
         n_val = total - n_train
         if n_val <= 0:
@@ -486,7 +488,7 @@ def main():
 
 
     #dataset = load_cml_tts_streamed(dia_cfg, dac_model)
-    dataset = load_common_voice17_streamed(dia_cfg, dac_model)
+    #dataset = load_common_voice17_streamed(dia_cfg, dac_model)
 
     # choose dataset
     if not dataset:
