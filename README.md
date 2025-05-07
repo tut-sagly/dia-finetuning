@@ -50,8 +50,8 @@ python -m dia.finetune \
 | `--local_ckpt`          | `str`  | `None`                         | Path to local model checkpoint (`.pth`).                         |                                    |
 | `--csv_path`            | `Path` | `None`                         | CSV file with \`audio                                            | example.wav\|transcript format.    |
 | `--audio_root`          | `Path` | `None`                         | Base directory for local audio files (required if `--csv_path`). |                                    |
-| `--run_name`            | `str`  | `dia_finetune_cv`              | TensorBoard run directory name.                                  |                                    |
-| `--output_dir`          | `Path` | `.cpkts/{run_name}`            | Directory for saving checkpoints.                                |                                    |
+| `--run_name`            | `str`  |                                | TensorBoard run directory name.                                  |                                    |
+| `--output_dir`          | `Path` |                                | Directory for saving checkpoints.                                |                                    |
 | `--shuffle_buffer_size` | `int`  | `None`                         | Buffer size for streaming shuffle.                               |                                    |
 | `--seed`                | `int`  | `42`                           | Random seed for reproducibility.                                 |                                    |
 | `--half`                | `bool` | `False`                        | Load model in FP16.                                              |                                    |
