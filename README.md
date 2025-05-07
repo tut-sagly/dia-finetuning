@@ -1,12 +1,23 @@
-## Usage:
+# Dia TTS Model Fine-Tuning
+
+A training pipeline for fine-tuning the **Dia** TTS model using Hugging Face datasets or local audio–text pairs. Supports mixed-precision, model compilation, 8-bit optimizers, streaming datasets, and evaluation via TensorBoard.
+For multilingual training, the pipeline supports language-tags ```[iso_code]```, for training multilingual, you have to provide a dataset with a language column containing the iso_code.
+
+
+---
+
+
+## Installation
+
 ```bash
 git clone https://github.com/stlohrey/dia-finetuning.git
 cd dia-finetuning
 pip install -e .
 ```
 
-then
+---
 
+## Usage Example
 
 ```bash
 python -m dia.finetune \
@@ -17,7 +28,80 @@ python -m dia.finetune \
   --output_dir ./checkpoints
 ```
 
-## Original readme
+---
+
+## Configuration
+
+* **JSON Config**: `dia/config.json` defines model sizes, token lengths, delay patterns, and audio PAD/BOS/EOS values.
+* **TrainConfig**: Default hyperparameters (epochs, batch size, learning rate, warmup, logging & saving steps, etc.) are set in the finetuning script in `TrainConfig`.
+* **CLI Config**: train settings can be passed via `train.py` flags (see below).
+
+---
+
+## Major CLI Arguments
+
+| Argument                | Type   | Default                        | Description                                                      |                                    |
+| ----------------------- | ------ | ------------------------------ | ---------------------------------------------------------------- | ---------------------------------- |
+| `--config`              | `Path` | `dia/config.json`              | Path to the Dia JSON config.                                     |                                    |
+| `--dataset`             | `str`  | `Paradoxia/opendata-iisys-hui` | HF dataset name (train split).                                   |                                    |
+| `--dataset2`            | `str`  | `None`                         | (Optional) Second HF dataset to interleave.                      |                                    |
+| `--streaming`           | `bool` | `True`                         | Use HF streaming API.                                            |                                    |
+| `--hub_model`           | `str`  | `nari-labs/Dia-1.6B`           | HF Hub repo for base checkpoint.                                 |                                    |
+| `--local_ckpt`          | `str`  | `None`                         | Path to local model checkpoint (`.pth`).                         |                                    |
+| `--csv_path`            | `Path` | `None`                         | CSV file with \`audio                                            | example.wav\|transcript format.    |
+| `--audio_root`          | `Path` | `None`                         | Base directory for local audio files (required if `--csv_path`). |                                    |
+| `--run_name`            | `str`  | `dia_finetune_cv`              | TensorBoard run directory name.                                  |                                    |
+| `--output_dir`          | `Path` | `.cpkts/{run_name}`            | Directory for saving checkpoints.                                |                                    |
+| `--shuffle_buffer_size` | `int`  | `None`                         | Buffer size for streaming shuffle.                               |                                    |
+| `--seed`                | `int`  | `42`                           | Random seed for reproducibility.                                 |                                    |
+| `--half`                | `bool` | `True`                         | Load model in FP16.                                              |                                    |
+| `--compile`             | `bool` | `True`                         | Enable `torch.compile` (Inductor backend).                       |                                    |
+
+---
+
+## Monitoring & Evaluation
+
+* **TensorBoard**:
+
+  ```bash
+  tensorboard --logdir runs
+  ```
+
+  * `Loss/train`, `Loss/eval`, learning rate, grad‐norm.
+  * Audio samples for each test sentence in multiple languages, can be specified inside finetune.py.
+
+* **Checkpoints**: Saved in `output_dir` as `ckpt_step{N}.pth` and `ckpt_epoch{E}.pth`.
+
+---
+
+## Inference (Gradio UI)
+
+**Convert Checkpoint to fp32**
+
+If you used --half and --compile during training, you have to unwrap and convert the checkpoint back to fp32:
+```bash
+./python -m dia.convert_ckpt \
+  --input-ckpt /path/to/ckpt_epoch1.pth \
+  --output-ckpt /path/to/ckpt_epoch1_fp32.pth \
+  --config    /path/to/config.json
+```
+
+A Gradio-based web app for interactive text-to-speech synthesis. It provides sliders for generation parameters and accepts optional audio prompts.
+
+ ```bash
+python app_local.py \
+  --local_ckpt path/to/ckpt_epoch1_fp32.pth \
+  --config path/to/inference/config.json
+```
+
+Open the displayed URL in your browser to interact with the model.
+
+---
+
+
+
+
+
 
 <p align="center">
 <a href="https://github.com/nari-labs/dia">
