@@ -12,6 +12,8 @@ For multilingual training, the pipeline supports language-tags ```[iso_code]```.
 ```bash
 git clone https://github.com/stlohrey/dia-finetuning.git
 cd dia-finetuning
+python -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
 
