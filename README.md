@@ -15,7 +15,7 @@ bash -c 'apt update;DEBIAN_FRONTEND=noninteractive apt-get install openssh-serve
 git clone https://github.com/stlohrey/dia-finetuning.git
 cd dia-finetuning
 python -m venv .venv
-apt update && apt install vim 
+apt update && apt install -y vim 
 vim .venv/bin/activate
 # ← add these lines to your .venv/bin/activate
 export HF_HOME=/workspace/hf_home
