@@ -71,7 +71,7 @@ test_sentences = {
 
 @dataclass
 class TrainConfig:
-    epochs: int = 1
+    epochs: int = 20
     batch_size: int = 2
     grad_accum_steps: int = 2
     learning_rate: float = 1e-5
@@ -502,7 +502,7 @@ def main():
             # load one or two streaming HF datasets
             ds0 = load_dataset(args.dataset, split="train", streaming=args.streaming, num_proc=8 )
             # ds1 = load_dataset(args.dataset, data_files="data/train-0000*-of-00149.parquet",  streaming=args.streaming, num_proc=8 )
-            ds1 = ds0.take(2)
+            ds1 = ds0.take(100)
             if args.streaming:
                 if args.dataset2:
                     ds2 = load_dataset(args.dataset2, split="train", streaming=True)
