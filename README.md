@@ -5,7 +5,9 @@ For multilingual training, the pipeline supports language-tags ```[iso_code]```.
 
 
 ---
-
+Add to runpod Template Overrides
+  
+bash -c 'apt update;DEBIAN_FRONTEND=noninteractive apt-get install openssh-server -y;mkdir -p ~/.ssh;cd $_;chmod 700 ~/.ssh;echo "$PUBLIC_KEY" >> authorized_keys;chmod 700 authorized_keys;service ssh start;sleep infinity'
 
 ## Installation
 
@@ -13,17 +15,28 @@ For multilingual training, the pipeline supports language-tags ```[iso_code]```.
 git clone https://github.com/stlohrey/dia-finetuning.git
 cd dia-finetuning
 python -m venv .venv
+apt update && apt install vim 
+vim .venv/bin/activate
+# ← add these lines to your .venv/bin/activate
+export HF_HOME=/workspace/hf_home
+export HF_DATASETS_CACHE=/workspace/hf_datasets_cache
+export TRANSFORMERS_CACHE=/workspace/hf_models_cache
+export HF_MODULES_CACHE=/workspace/hf_modules_cache
+export TORCH_HOME=/workspace/torch_cache
+
 source .venv/bin/activate
 pip install -e .
 ```
 
+
 ---
+ds1 = load_dataset(args.dataset, split="train", streaming=args.streaming,num_proc=8 ) --parallelize
 
 ## Usage Example
 
 ```bash
 python -m dia.finetune \
-  --config path/to/dia/config.json \
+  --config dia/config.json \
   --dataset Paradoxia/opendata-iisys-hui \
   --hub_model nari-labs/Dia-1.6B \
   --run_name my_experiment \
@@ -250,3 +263,9 @@ Join our [Discord Server](https://discord.gg/pgdB5YRe) for discussions.
    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=nari-labs/dia&type=Date" />
  </picture>
 </a>
+
+
+MAX_JOBS=8 pip install --force-reinstall \
+"git+https://github.com/openai/triton.git@c802bb4#egg=triton&subdirectory=python"
+
+

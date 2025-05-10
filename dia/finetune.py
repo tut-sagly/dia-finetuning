@@ -500,8 +500,9 @@ def main():
             dataset = LocalDiaDataset(args.csv_path, args.audio_root, dia_cfg, dac_model)
         else:
             # load one or two streaming HF datasets
-            ds1 = load_dataset(args.dataset, split="train", streaming=args.streaming)
-            
+            # ds1 = load_dataset(args.dataset, split="train", streaming=args.streaming, num_proc=8 )
+            ds1 = load_dataset(args.dataset, data_files="data/train-0000*-of-00149.parquet",  streaming=args.streaming, num_proc=8 )
+
             if args.streaming:
                 if args.dataset2:
                     ds2 = load_dataset(args.dataset2, split="train", streaming=True)
